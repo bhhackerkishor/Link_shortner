@@ -1,6 +1,6 @@
 // app/api/users/sync/route.js
 import { NextResponse } from 'next/server';
-import User from '@/lib/models/User';
+import User from '@/lib/models/User.model.js';
 
 export async function POST(req) {
   try {
