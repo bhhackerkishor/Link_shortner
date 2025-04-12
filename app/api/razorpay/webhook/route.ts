@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import User from '@/lib/models/User';
+import User from '@/lib/models/User.model.js';
 
 export async function POST(req: Request) {
   const body = await req.text();
