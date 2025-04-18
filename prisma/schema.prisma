@@ -15,13 +15,13 @@ datasource db {
 }
 
 model User {
-  id                 String   @id @default(cuid()) @map("_id")
-  clerkId            String   @unique
-  email              String   @unique
+  id                 String     @id @default(cuid()) @map("_id")
+  clerkId            String     @unique
+  email              String     @unique
   name               String
   image              String?
-  subscriptionActive Boolean  @default(false)
-  subscriptionPlan   String   @default("free")
+  subscriptionActive Boolean    @default(false)
+  subscriptionPlan   String     @default("free")
   subscribedAt       DateTime?
   createdAt          DateTime?
   paymentId          String?
@@ -29,7 +29,6 @@ model User {
   purchaseHistory    Purchase[]
   links              Link[]
 }
-
 
 model Link {
   id String @id @default(cuid()) @map("_id")

@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
     // Find user by clerkId and include purchase history
     const user = await db.user.findUnique({
       where: { clerkId: userId }
+      ,include: {
+        purchaseHistory: true, // include the relation explicitly
+      },
     });
 
     if (!user) {

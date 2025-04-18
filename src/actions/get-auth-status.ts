@@ -25,11 +25,12 @@ const getAuthStatus = async () => {
             data: {
                 clerkId,
                 email: user.primaryEmailAddress.emailAddress,
-                name: user.fullName || user.firstName,
+                name : user?.fullName ?? user?.firstName ?? "No Name",
+
                 image: user.imageUrl,
                 subscriptionActive: false,
     subscriptionPlan: "free",
-    createdAt:Date.now(),
+    createdAt: new Date(),
             }
         });
     }

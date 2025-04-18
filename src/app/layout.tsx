@@ -4,7 +4,6 @@ import "@/styles/globals.css";
 import { aeonik, cn, generateMetadata, inter } from "@/utils";
 
 export const metadata = generateMetadata();
-console.log("CLERK KEY:", process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 export default function RootLayout({
     children,
@@ -20,10 +19,7 @@ export default function RootLayout({
                     inter.variable,
                 )}
             >
-                <script
-            src="https://checkout.razorpay.com/v1/checkout.js"
-            type="text/javascript"
-          ></script>
+                
 
                 <Providers>
                     <Toaster richColors theme="dark" position="top-right" />

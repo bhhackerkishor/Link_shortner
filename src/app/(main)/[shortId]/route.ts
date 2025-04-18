@@ -2,8 +2,10 @@ import { dbConnect } from '@/lib/db/db';
 import { Url } from '@/lib/db/models/Url';
 import {UAParser} from 'ua-parser-js';
 import axios from 'axios';
+import { NextRequest } from 'next/server';
 
-export async function GET(req, { params }) {
+export async function GET(req: NextRequest, { params }: { params: { shortId: string } }) {
+
   await dbConnect();
   const { shortId } = params;
   const urlDoc = await Url.findOne({ shortId });

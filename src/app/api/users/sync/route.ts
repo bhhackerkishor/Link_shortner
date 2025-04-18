@@ -1,8 +1,7 @@
-// app/api/users/sync/route.js
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import User from '@/lib/db/models/User.model';
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
     const userData = await req.json();
     
@@ -19,9 +18,17 @@ export async function POST(req) {
 
     const newUser = await User.create(userData);
     return NextResponse.json(newUser);
-  } catch (error) {
+  } catch (error: unknown) {
+    // Type assertion: We assert that the error is an instance of Error
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: 'User sync failed', details: error.message },
+        { status: 500 }
+      );
+    }
+    // Handle case when error is not an instance of Error
     return NextResponse.json(
-      { error: 'User sync failed', details: error.message },
+      { error: 'User sync failed', details: 'Unknown error' },
       { status: 500 }
     );
   }

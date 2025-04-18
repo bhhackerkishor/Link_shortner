@@ -9,7 +9,9 @@ import {
   LayoutDashboard, Users, Settings, Package,
   LineChart, Link, Bell, Search
 } from "lucide-react";
-import { formatTimeAgo } from "@/utils/constants/time.ts";
+import type { LucideIcon } from "lucide-react";
+
+import { formatTimeAgo } from "@/utils/constants/time";
 import * as Icons from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -26,14 +28,57 @@ import {
 import { Select,SelectTrigger,SelectValue,SelectContent,SelectItem } from "@/components/ui/select";
 
 
+type Click = {
+  timestamp: string;
+};
+
+type UrlData = {
+  _id: string;
+  shortId: string;
+  originalUrl: string;
+  clicks: Click[];
+};
+
+type Subscription = {
+  plan: string;
+  limit: number;
+  usage: number;
+  renewal: string;
+};
+
+type DashboardState = {
+  urls: UrlData[];
+  totalUrls: number;
+  selectedUrl: UrlData | null;
+  showCreateDialog: boolean;
+  newUrl: string;
+  subscription: Subscription;
+};
+
+// ✅ useState with proper type
+
+
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [monclicks, setMonclicks] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
   const [activeUsers, setActiveUsers] = useState(0);
-  const [chartRange, setChartRange] = useState("yearly");
+  const [chartRange, setChartRange] = useState<RangeType>("monthly");
 
-  const [state, setState] = useState({
+  // const [state, setState] = useState({
+  //   urls: [],
+  //   totalUrls: 0,
+  //   selectedUrl: UrlData | null,
+  //   showCreateDialog: false,
+  //   newUrl: "",
+  //   subscription: {
+  //     plan: "Pro",
+  //     limit: 5000,
+  //     usage: 0,
+  //     renewal: "2024-03-15",
+  //   },
+  // });
+  const [state, setState] = useState<DashboardState>({
     urls: [],
     totalUrls: 0,
     selectedUrl: null,
@@ -55,28 +100,28 @@ export default function Dashboard() {
         fetch("/api/recent-activity"),
         fetch("/api/stats/active-users"),
       ]);
-
+  
       const urlsData = await urlsRes.json();
       const countData = await countRes.json();
       const recentData = await recentRes.json();
       const activeUsersData = await activeRes.json();
-
+  
       const totalClicks = urlsData.data.reduce(
-        (sum, url) => sum + url.clicks.length,
+        (sum: number, url: UrlData) => sum + url.clicks.length,
         0
       );
-
+  
       setState((prev) => ({
         ...prev,
         urls: urlsData.data,
         totalUrls: countData.total,
-        selectedUrl: urlsData.data[0] || null, // ✅ Select first by default
+        selectedUrl: urlsData.data[0] || null,
         subscription: {
           ...prev.subscription,
           usage: totalClicks,
         },
       }));
-
+  
       setMonclicks(totalClicks);
       setRecentActivities(recentData.data || []);
       setActiveUsers(activeUsersData.activeUsers);
@@ -86,18 +131,20 @@ export default function Dashboard() {
       setIsLoading(false);
     }
   };
-
+  
   useEffect(() => {
     fetchData();
   }, []);
-
-  const getGroupedClickData = (clicks, range) => {
-    const grouped = new Map();
-
+  
+  type RangeType = "yearly" | "monthly" | "weekly";
+  
+  const getGroupedClickData = (clicks: { timestamp: string }[], range: RangeType) => {
+    const grouped = new Map<string, number>();
+  
     clicks.forEach((click) => {
       const date = new Date(click.timestamp);
       let key = "";
-
+  
       if (range === "yearly") {
         key = date.toLocaleString("default", { month: "short" });
       } else if (range === "monthly") {
@@ -106,18 +153,18 @@ export default function Dashboard() {
       } else if (range === "weekly") {
         key = date.toLocaleString("default", { weekday: "short" });
       }
-
+  
       grouped.set(key, (grouped.get(key) || 0) + 1);
     });
-
+  
     return Array.from(grouped.entries()).map(([label, count]) => ({
       [range === "yearly" ? "month" : range === "monthly" ? "week" : "day"]: label,
       clicks: count,
     }));
   };
-
+  
+  // ✅ Now this will work perfectly with no error
   const realClickData = getGroupedClickData(state.selectedUrl?.clicks || [], chartRange);
-
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex">
       <div className="flex-1">
@@ -149,13 +196,13 @@ export default function Dashboard() {
               { title: "Total Clicks", value: monclicks, color: "bg-green-500", icon: "MousePointer2" },
               { title: "Active users", value: activeUsers, color: "bg-purple-500", icon: "Users" },
             ].map((stat, index) => {
-              const Icon = Icons[stat.icon];
+              const Icon = Icons[stat.icon as keyof typeof Icons] as LucideIcon;
               return (
                 <Card key={index} className="bg-[#171717] border-[#262626] transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-[#333] rounded-2xl">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-[#D3D3D3] text-sm">{stat.title}</CardTitle>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center`}>
-                      {Icon && <Icon className="w-4 h-4 text-white" />}
+                      <Icon className="w-4 h-4 text-white" />
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -170,12 +217,13 @@ export default function Dashboard() {
   <CardHeader className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
     <CardTitle className="text-white">Clicks Overview</CardTitle>
     <div className="w-full md:w-60">
-      <Select
+    <Select
+        value={state.selectedUrl?.shortId ?? ""}
         onValueChange={(value) => {
-          const selected = state.urls.find((url) => url.shortId === value);
+          const selected = state.urls.find((url) => url.shortId === value) ?? null;
           setState((prev) => ({ ...prev, selectedUrl: selected }));
         }}
-        value={state.selectedUrl?.shortId}
+        
       >
         <SelectTrigger className="bg-[#1F1F1F] border-[#333] text-white">
           <SelectValue placeholder="Select a URL" />

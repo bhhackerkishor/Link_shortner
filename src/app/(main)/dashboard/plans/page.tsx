@@ -158,7 +158,7 @@ const PricingCards = () => {
                 <button
                   onClick={() => handleSubscribe(`${plan.name.toLowerCase()}_monthly`, plan.price.monthly)}
                   className={cn(
-                    buttonVariants({ variant: "default" }),
+                    buttonVariants({ variant: "primary" }),
                     plan.name === "Pro" && "bg-purple-500 hover:bg-purple-600",
                     "w-full"
                   )}
@@ -221,7 +221,7 @@ const PricingCards = () => {
                 <button
                   onClick={() => handleSubscribe(`${plan.name.toLowerCase()}_yearly`, plan.price.yearly)}
                   className={cn(
-                    buttonVariants({ variant: "default" }),
+                    buttonVariants({ variant: "primary" }),
                     plan.name === "Pro" && "bg-purple-500 hover:bg-purple-600",
                     "w-full"
                   )}

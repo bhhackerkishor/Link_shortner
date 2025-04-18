@@ -12,6 +12,7 @@ import { BarChart, LineChart, PieChart } from '@/components/ui/charts';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PLANS } from "@/utils";
+import { CopyIcon } from "lucide-react";
 
 interface Url {
   _id: string;
@@ -20,6 +21,12 @@ interface Url {
   clicks: Click[];
   createdAt: string;
 }
+type UrlData = {
+  _id: string;
+  shortId: string;
+  originalUrl: string;
+  clicks: Click[];
+};
 
 interface Click {
   timestamp: string;
@@ -27,12 +34,35 @@ interface Click {
   location: string;
   ip: string;
 }
+interface ChartData {
+  name: string;
+  value: number;
+}
+type Subscription = {
+  plan: string;
+  clicksPerMonth: number;
+  linksPerMonth: number;
+  renewal:Date;
+  usage?:number;
+  limit?:number;
+};
+type StateType = {
+  subscription?: Subscription;
+  newUrl?: string;  // newUrl is optional
+  totalUrls?:number;
+  usage?:number;
+  showCreateDialog?: boolean;
+  urls?:Url[];
+  selectedUrl?: Url | null;
+
+};
 
 export default function Dashboard() {
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(true);
-  const [monclicks, setMonclicks] = useState();
-  const [userData, setUserData] = useState();
+  const [monclicks, setMonclicks] = useState<number>(0);
+  const [userData, setUserData] = useState<{ subscriptionPlan?: string; createdAt?: string; subscribedAt?: string } | null>(null);
+  
 
   const fetchUserData = async () => {
     setIsLoading(true); // optional
@@ -61,26 +91,31 @@ export default function Dashboard() {
   
   const limits = getLimits(userData?.subscriptionPlan || "free");
   
-  const [state, setState] = useState({
-    urls: [] as Url[],
-    totalUrls: 0,
-    selectedUrl: null as Url | null,
-    showCreateDialog: false,
-    newUrl: '',
-    subscription: {
-      plan: userData?.subscriptionPlan || "free",
-      clicksPerMonth: limits.clicksPerMonth,
-      linksPerMonth: limits.linksPerMonth,
-      usage: monclicks,
-      renewal:
-      userData?.subscriptionPlan === "free"
-          ? userData?.createdAt
-            ? new Date(userData.createdAt).getTime()
-            : Date.now()
-          : userData?.subscribedAt,
-    },
-  });
+  const [state, setState] = useState<StateType>({});
 
+  useEffect(() => {
+    if (userData) {
+      const limits = getLimits(userData.subscriptionPlan || "free");
+  
+      const rawRenewal =
+        userData.subscriptionPlan === "free"
+          ? userData.createdAt ?? Date.now()
+          : userData.subscribedAt ?? Date.now(); // fallback if subscribedAt is undefined
+  
+      setState(prev => ({
+        ...prev,
+        subscription: {
+          ...prev.subscription ?? {},
+          plan: userData.subscriptionPlan || "free",
+          clicksPerMonth: limits.clicksPerMonth,
+          linksPerMonth: limits.linksPerMonth,
+          renewal: new Date(rawRenewal), // now always string | number
+        }
+      }));
+    }
+  }, [userData]);
+  
+  
    
   
   
@@ -95,8 +130,8 @@ export default function Dashboard() {
   
       const urlsData = await urlsRes.json();
       const countData = await countRes.json();
-      const totalClicks = urlsData.data.reduce((sum, url) => sum + url.clicks.length, 0);
-  
+      const totalClicks = urlsData.data.reduce((sum: number, url :UrlData) => sum + url.clicks.length, 0);
+
       setState(prev => ({
         ...prev,
         urls: urlsData.data,
@@ -128,7 +163,13 @@ export default function Dashboard() {
       fetchData();
       toast.success('URL created successfully');
     } catch (error) {
-      toast.error(error.message);
+      if (error instanceof Error) {
+        console.error(error.message);  // Log the error message if it's an instance of Error
+        toast.error(error.message || 'Failed to load data');
+      } else {
+        console.error(error);  // For non-Error objects
+        toast.error('Failed to load data');
+      }
     }
   };
 
@@ -183,7 +224,7 @@ export default function Dashboard() {
                   <CardTitle className="text-sm font-medium">Subscription Plan</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{state.subscription.plan}</div>
+                  <div className="text-2xl font-bold">{state?.subscription?.plan}</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {state?.usage ||0}/{limits.clicksPerMonth} clicks
                   </div>
@@ -196,9 +237,12 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {new Date(state.subscription.renewal).toLocaleDateString()}
+                    {state?.subscription?.renewal
+                      ? new Date(state.subscription.renewal).toLocaleDateString()
+                      : 'No renewal date'}
                   </div>
                 </CardContent>
+
               </Card>
             </>
           )}
@@ -207,7 +251,7 @@ export default function Dashboard() {
         {/* Create New Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h2 className="text-lg font-semibold">My Short Links</h2>
-          <Dialog open={state.showCreateDialog} 
+          <Dialog open={state?.showCreateDialog} 
             onOpenChange={(open) => setState(prev => ({ ...prev, showCreateDialog: open }))}>
             <DialogTrigger asChild>
               <Button className="w-full sm:w-auto">Create New</Button>
@@ -270,7 +314,7 @@ export default function Dashboard() {
                 </TableBody>
               ) : (
                 <TableBody>
-                  {state.urls.map((url) => (
+                  {state?.urls?.map((url) => (
                     <TableRow key={url._id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -333,14 +377,16 @@ export default function Dashboard() {
                   <DialogTitle>Analytics for {state.selectedUrl.shortId}</DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <LineChart
-                    title="Clicks Over Time"
-                    data={state.selectedUrl.clicks.reduce((acc, click) => {
-                      const date = new Date(click.timestamp).toLocaleDateString();
-                      acc[date] = (acc[date] || 0) + 1;
-                      return acc;
-                    }, {})}
-                  />
+                <LineChart
+  title="Clicks Over Time"
+  data={Object.entries(
+    state.selectedUrl.clicks.reduce((acc: { [key: string]: number }, click: Click) => {
+      const date = new Date(click.timestamp).toLocaleDateString();
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([name, value]) => ({ name, value } as ChartData))} // Mapping to ChartData type
+/>
                   <PieChart
                     title="Device Distribution"
                     data={[
@@ -348,15 +394,7 @@ export default function Dashboard() {
                       { name: 'Desktop', value: state.selectedUrl.clicks.filter(c => c.device === 'desktop').length }
                     ]}
                   />
-                  <div className="md:col-span-2">
-                    <BarChart
-                      title="Top Locations"
-                      data={state.selectedUrl.clicks.reduce((acc, click) => {
-                        acc[click.location] = (acc[click.location] || 0) + 1;
-                        return acc;
-                      }, {})}
-                    />
-                  </div>
+                  
                 </div>
               </>
             )}
@@ -370,16 +408,20 @@ export default function Dashboard() {
               <div className="flex-1">
                 <CardTitle className="text-lg mb-2">Pro Subscription</CardTitle>
                 <CardDescription className="text-primary-foreground/80">
-                  {state.subscription.usage}/{state.subscription.limit} clicks used
+                  {state?.subscription?.usage}/{state?.subscription?.limit} clicks used
                 </CardDescription>
-                <div className="mt-3 h-2 bg-primary-foreground/20 rounded-full">
-                  <div 
-                    className="h-full bg-primary-foreground rounded-full"
-                    style={{ width: `${(state.subscription.usage / state.subscription.limit) * 100}%` }}
-                  />
-                </div>
+                {typeof state?.subscription?.usage === 'number' && typeof state?.subscription?.limit === 'number' && (
+                      <div className="mt-3 h-2 bg-primary-foreground/20 rounded-full">
+                        <div 
+                          className="h-full bg-primary-foreground rounded-full"
+                          style={{ 
+                            width: `${(state.subscription.usage / state.subscription.limit) * 100}%` 
+                          }}
+                        />
+                      </div>
+                    )}
               </div>
-              <Button variant="secondary" className="w-full sm:w-auto mt-2 sm:mt-0">
+              <Button variant="purple" className="w-full sm:w-auto mt-2 sm:mt-0">
                 Upgrade Plan
               </Button>
             </div>
@@ -390,22 +432,22 @@ export default function Dashboard() {
   );
 }
 
-function CopyIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-    </svg>
-  );
-}
+// // function CopyIcon1(props) {
+//   return (
+//     <svg
+//       {...props}
+//       xmlns="http://www.w3.org/2000/svg"
+//       width="24"
+//       height="24"
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="2"
+//       strokeLinecap="round"
+//       strokeLinejoin="round"
+//     >
+//       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+//       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+//     </svg>
+//   );
+// }
