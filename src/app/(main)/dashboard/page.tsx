@@ -10,6 +10,7 @@ import {
   LineChart, Link, Bell, Search
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useClerk} from "@clerk/nextjs";
 
 import { formatTimeAgo } from "@/utils/constants/time";
 import * as Icons from "lucide-react";
@@ -60,6 +61,7 @@ type DashboardState = {
 
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
+  const { user} = useClerk();
   const [monclicks, setMonclicks] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
   const [activeUsers, setActiveUsers] = useState(0);
@@ -183,7 +185,7 @@ export default function Dashboard() {
             </Button>
             <Avatar>
               <AvatarImage src="/avatar.png" />
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarFallback>{user?.fullName?.charAt(0)}</AvatarFallback>
             </Avatar>
           </div>
         </header>
